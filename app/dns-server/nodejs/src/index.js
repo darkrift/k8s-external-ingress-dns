@@ -40,6 +40,12 @@ const respond = (dnsRequest, dnsResponseSend) => {
                 if (typeof host === "undefined") {
                     continue;
                 }
+
+                const ingressLB = getIn(ingress, ["status", "loadBalancer", "ingress"]);
+                if (!Array.isArray(ingressLB)) {
+                    continue;
+                }
+
                 if (names.includes(host)) {
                     confirmedNames.push(host);
                 }
@@ -65,13 +71,17 @@ const respond = (dnsRequest, dnsResponseSend) => {
         dnsResponse.additionals = [];
 
         for (let i = 0; i < confirmedNames.length; i++) {
-            dnsResponse.answers.push({
-                address: process.env.POD_IP,
-                type   : Packet.TYPE.A,
-                class  : Packet.CLASS.IN,
-                ttl    : 300,
-                name   : confirmedNames[i]
-            });
+            const host = confirmedNames[i];
+            for (let lb = 0; lb < host.lbs.length; lb++) {
+                dnsResponse.answers.push({
+                    address: host.lbs[lb]["ip"],
+                    type   : Packet.TYPE.A,
+                    class  : Packet.CLASS.IN,
+                    ttl    : 300,
+                    name   : host.host
+                });
+
+            }
         }
 
         console.log(dnsResponse);

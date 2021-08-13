@@ -16,21 +16,21 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: minikube-ingress-dns
+  name: loadbalancer-ingress-dns
   namespace: kube-system
   labels:
-    app: minikube-ingress-dns
+    app: loadbalancer-ingress-dns
     kubernetes.io/bootstrapping: rbac-defaults
     app.kubernetes.io/part-of: kube-system
     addonmanager.kubernetes.io/mode: Reconcile
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: minikube-ingress-dns
+  name: loadbalancer-ingress-dns
   namespace: kube-system
   labels:
-    app: minikube-ingress-dns
+    app: loadbalancer-ingress-dns
     kubernetes.io/bootstrapping: rbac-defaults
     app.kubernetes.io/part-of: kube-system
     addonmanager.kubernetes.io/mode: Reconcile
@@ -56,41 +56,41 @@ rules:
       - list
       - watch
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: minikube-ingress-dns
+  name: loadbalancer-ingress-dns
   namespace: kube-system
   labels:
-    app: minikube-ingress-dns
+    app: loadbalancer-ingress-dns
     kubernetes.io/bootstrapping: rbac-defaults
     app.kubernetes.io/part-of: kube-system
     addonmanager.kubernetes.io/mode: EnsureExists
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: minikube-ingress-dns
+  name: loadbalancer-ingress-dns
 subjects:
   - kind: ServiceAccount
-    name: minikube-ingress-dns
+    name: loadbalancer-ingress-dns
     namespace: kube-system
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: kube-ingress-dns-minikube
+  name: kube-loadbalancer-ingress-dns
   namespace: kube-system
   labels:
-    app: minikube-ingress-dns
+    app: loadbalancer-ingress-dns
     app.kubernetes.io/part-of: kube-system
     addonmanager.kubernetes.io/mode: EnsureExists
 spec:
-  serviceAccountName: minikube-ingress-dns
+  serviceAccountName: loadbalancer-ingress-dns
   hostNetwork: true
   containers:
-    - name: minikube-ingress-dns
-      image: "cryptexlabs/minikube-ingress-dns:0.1.1"
-      imagePullPolicy: IfNotPresent
+    - name: loadbalancer-ingress-dns
+      image: "lordrift/k8s-external-ingress-dns:0.1"
+      imagePullPolicy: Always
       ports:
         - containerPort: 53
           protocol: UDP

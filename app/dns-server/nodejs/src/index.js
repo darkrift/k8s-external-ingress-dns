@@ -4,6 +4,7 @@ const createServer = require('dns2').createServer;
 const Packet       = require('dns2').Packet;
 const k8s          = require('@kubernetes/client-node');
 const _            = require('lodash');
+const getIn        = require('get-in');
 
 const kc = new k8s.KubeConfig();
 kc.loadFromDefault();
@@ -26,7 +27,7 @@ const respond = (dnsRequest, dnsResponseSend) => {
         names.push(name);
     }
 
-    request.get(`${kc.getCurrentCluster().server}/apis/extensions/v1beta1/ingresses`, opts, (error, response, jsonBody) => {
+    request.get(`${kc.getCurrentCluster().server}/apis/networking.k8s.io/v1/ingresses`, opts, (error, response, jsonBody) => {
 
         const confirmedNames = [];
 
@@ -40,8 +41,16 @@ const respond = (dnsRequest, dnsResponseSend) => {
                 if (typeof host === "undefined") {
                     continue;
                 }
+                const ingressLB = getIn(ingress, ["spec", "status", "loadBalancer", "ingress"]);
+                if (!Array.isArray(ingressLB)) {
+                    continue;
+                }
+
                 if (names.includes(host)) {
-                    confirmedNames.push(host);
+                    confirmedNames.push({
+                        "host" : host,
+                        "lbs": ingressLB
+                    });
                 }
                 else {
                     const match = host.match(wildcardRegex);
@@ -49,7 +58,10 @@ const respond = (dnsRequest, dnsResponseSend) => {
                         const hostRegex = new RegExp(`[^*]+[.]${_.escapeRegExp(match.groups.anydomain)}`);
                         for (const name of names) {
                             if (name.match(hostRegex)) {
-                                confirmedNames.push(name);
+                                confirmedNames.push({
+                                    "host" : name,
+                                    "lbs": ingressLB
+                                });
                             }
                         }
                     }
@@ -65,13 +77,17 @@ const respond = (dnsRequest, dnsResponseSend) => {
         dnsResponse.additionals = [];
 
         for (let i = 0; i < confirmedNames.length; i++) {
-            dnsResponse.answers.push({
-                address: process.env.POD_IP,
-                type   : Packet.TYPE.A,
-                class  : Packet.CLASS.IN,
-                ttl    : 300,
-                name   : confirmedNames[i]
-            });
+            const host = confirmedNames[i];
+            for (let lb = 0; lb < host.lbs; lb++) {
+                dnsResponse.answers.push({
+                    address: host.lbs[lb],
+                    type   : Packet.TYPE.A,
+                    class  : Packet.CLASS.IN,
+                    ttl    : 300,
+                    name   : host.host
+                });
+
+            }
         }
 
         console.log(dnsResponse);
